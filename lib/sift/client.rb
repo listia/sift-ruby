@@ -132,15 +132,22 @@ module Sift
     #   the status message and status code. In general, you can ignore the returned
     #   result, though.
     #
-    def track(event, properties = {}, timeout = nil, path = nil, return_score = false, api_key = @api_key)
+    def track(event, properties = {}, timeout = nil, path = nil, return_score = false, api_key = @api_key, return_action = false)
       raise("event must be a non-empty string") if (!event.is_a? String) || event.empty?
       raise("properties cannot be empty") if properties.empty?
       raise("Bad api_key parameter") if api_key.empty?
       path ||= @path
       timeout ||= @timeout
-      if return_score
-        path = path + "?return_score=true"
+
+      [].tap do |query_options|
+        query_options << "return_score=true" if return_score
+        query_options << "return_action=true" if return_action
+
+        if !query_options.empty?
+          path = path + "?" + query_options.join("&")
+        end
       end
+
       options = {
         :body => MultiJson.dump(delete_nils(properties).merge({"$type" => event,
                                                                "$api_key" => api_key})),

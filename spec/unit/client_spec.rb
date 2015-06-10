@@ -42,6 +42,24 @@ describe Sift::Client do
     }
   end
 
+  def action_response_json
+    score_response_json.merge({
+      :actions => [{
+        :action_id => "action123",
+        :time => Time.now.to_i,
+        :triggers => [{
+          :triggerType => "FORMULA",
+          :source => "synchronous_action",
+          :trigger_id => "trigger123"
+        }],
+        :entity => {
+          :type => "User",
+          :id => "247019"
+        }
+      }]
+    })
+  end
+
   def fully_qualified_api_endpoint
     Sift::Client::API_ENDPOINT + Sift.current_rest_api_path
   end
@@ -240,6 +258,24 @@ describe Sift::Client do
     expect(response.body["score_response"]["score"]).to eq(0.93)
   end
 
+  it "Successfuly make a return action request" do
+    api_key = "foobar"
+    response_json = {
+      :status => 0,
+      :error_message => "OK",
+      :score_response => action_response_json
+    }
 
+    stub_request(:post, "https://api.siftscience.com/v203/events?return_action=true").
+      to_return(:status => 200, :body => MultiJson.dump(response_json), :headers => {"content-type"=>"application/json; charset=UTF-8","content-length"=> "74"})
 
+    event = "$transaction"
+    properties = valid_transaction_properties
+    response = Sift::Client.new(api_key).track(event, properties, nil, nil, false, "any_api_key", true)
+    expect(response.ok?).to eq(true)
+    expect(response.api_status).to eq(0)
+    expect(response.api_error_message).to eq("OK")
+    expect(response.body["score_response"]["score"]).to eq(0.93)
+    expect(response.body["score_response"]["actions"]).to_not be_empty
+  end
 end
